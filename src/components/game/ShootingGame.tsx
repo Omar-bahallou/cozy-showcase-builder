@@ -19,7 +19,7 @@ const SPAWN_INTERVAL_BASE = 1500;
 const HIT_RADIUS = 0.07;
 
 export default function ShootingGame() {
-  const { videoRef, canvasRef, handPosition, smoothPosition, isShooting, isReady, status } = useHandTracking();
+  const { videoRef, canvasRef, hands, isReady, status } = useHandTracking();
   const [score, setScore] = useState(0);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
   const [targets, setTargets] = useState<GameTarget[]>([]);
@@ -36,7 +36,6 @@ export default function ShootingGame() {
   // Spawn targets
   useEffect(() => {
     if (!isReady) return;
-
     const interval = setInterval(() => {
       const margin = 0.12;
       const newTarget: GameTarget = {
@@ -50,7 +49,6 @@ export default function ShootingGame() {
       };
       setTargets((prev) => [...prev, newTarget]);
     }, SPAWN_INTERVAL_BASE / speedMultiplier);
-
     return () => clearInterval(interval);
   }, [isReady, speedMultiplier]);
 
@@ -63,7 +61,6 @@ export default function ShootingGame() {
           if (t.isHit) return now - t.hitTime < 500;
           return now - t.spawnTime < TARGET_LIFETIME;
         });
-        // Check for misses
         const missed = prev.filter((t) => !t.isHit && now - t.spawnTime >= TARGET_LIFETIME);
         if (missed.length > 0) {
           setCombo(0);
@@ -72,40 +69,39 @@ export default function ShootingGame() {
         return next;
       });
     }, 100);
-
     return () => clearInterval(cleanup);
   }, []);
 
-  // Handle shooting
+  // Handle shooting for each hand
   useEffect(() => {
-    if (!isShooting || !smoothPosition) return;
+    hands.forEach((hand) => {
+      if (!hand.isShooting || !hand.smoothPosition) return;
+      const pos = hand.smoothPosition;
 
-    setTargets((prev) => {
-      let hit = false;
-      const updated = prev.map((target) => {
-        if (target.isHit) return target;
-        const dx = target.x - smoothPosition.x;
-        const dy = target.y - smoothPosition.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < HIT_RADIUS + target.size / 1500) {
-          hit = true;
-          return { ...target, isHit: true, hitTime: Date.now() };
+      setTargets((prev) => {
+        let hit = false;
+        const updated = prev.map((target) => {
+          if (target.isHit) return target;
+          const dx = target.x - pos.x;
+          const dy = target.y - pos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < HIT_RADIUS + target.size / 1500) {
+            hit = true;
+            return { ...target, isHit: true, hitTime: Date.now() };
+          }
+          return target;
+        });
+        if (hit) {
+          setCombo((c) => c + 1);
+          setScore((s) => s + Math.round(10 * speedMultiplier));
+          setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
         }
-        return target;
+        return updated;
       });
-
-      if (hit) {
-        setCombo((c) => c + 1);
-        setScore((s) => s + Math.round(10 * speedMultiplier));
-        setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
-      }
-
-      return updated;
     });
-  }, [isShooting, smoothPosition]);
+  }, [hands.map((h) => h.isShooting).join(",")]);
 
   const now = Date.now();
-  const aimPos = smoothPosition || handPosition;
 
   return (
     <div className="fixed inset-0 bg-background overflow-hidden cursor-none">
@@ -132,13 +128,19 @@ export default function ShootingGame() {
         />
       ))}
 
-      {aimPos && (
-        <Crosshair
-          x={aimPos.x}
-          y={aimPos.y}
-          isShooting={isShooting}
-        />
-      )}
+      {hands.map((hand, i) => {
+        const aimPos = hand.smoothPosition || hand.handPosition;
+        if (!aimPos) return null;
+        return (
+          <Crosshair
+            key={i}
+            x={aimPos.x}
+            y={aimPos.y}
+            isShooting={hand.isShooting}
+            handIndex={i}
+          />
+        );
+      })}
     </div>
   );
 }
