@@ -23,7 +23,7 @@ function lerp(a: number, b: number, t: number) {
   return a + (b - a) * t;
 }
 
-const SMOOTH_FACTOR = 0.25;
+const SMOOTH_FACTOR = 0.5;
 const NUM_HANDS = 2;
 
 export function useHandTracking(): UseHandTrackingResult {
