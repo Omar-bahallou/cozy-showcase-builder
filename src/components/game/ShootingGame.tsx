@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useHandTracking } from "@/hooks/useHandTracking";
 import Crosshair from "./Crosshair";
 import Target from "./Target";
 import GameUI from "./GameUI";
+import StartScreen from "./StartScreen";
+import GameOverScreen from "./GameOverScreen";
 
 interface GameTarget {
   id: number;
@@ -14,28 +16,70 @@ interface GameTarget {
   spawnTime: number;
 }
 
+type GameState = "start" | "playing" | "gameover";
+
 const TARGET_LIFETIME = 3000;
 const SPAWN_INTERVAL_BASE = 1500;
 const HIT_RADIUS = 0.07;
+const MAX_MISSES = 5;
+const HIGH_SCORE_KEY = "hand-shooter-high-score";
+
+function getHighScore(): number {
+  try {
+    return parseInt(localStorage.getItem(HIGH_SCORE_KEY) || "0", 10) || 0;
+  } catch { return 0; }
+}
+
+function setHighScore(score: number) {
+  try { localStorage.setItem(HIGH_SCORE_KEY, String(score)); } catch {}
+}
 
 export default function ShootingGame() {
   const { videoRef, canvasRef, hands, isReady, status } = useHandTracking();
+  const [gameState, setGameState] = useState<GameState>("start");
   const [score, setScore] = useState(0);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
   const [targets, setTargets] = useState<GameTarget[]>([]);
   const [combo, setCombo] = useState(0);
+  const [misses, setMisses] = useState(0);
+  const [highScore, setHighScoreState] = useState(getHighScore);
+  const [isNewHighScore, setIsNewHighScore] = useState(false);
   const targetIdRef = useRef(0);
   const [, forceUpdate] = useState(0);
 
+  const handleStart = useCallback(() => {
+    setGameState("playing");
+    setScore(0);
+    setSpeedMultiplier(1.0);
+    setTargets([]);
+    setCombo(0);
+    setMisses(0);
+    setIsNewHighScore(false);
+    targetIdRef.current = 0;
+  }, []);
+
+  const handleGameOver = useCallback((finalScore: number) => {
+    setGameState("gameover");
+    const prev = getHighScore();
+    if (finalScore > prev) {
+      setHighScore(finalScore);
+      setHighScoreState(finalScore);
+      setIsNewHighScore(true);
+    } else {
+      setIsNewHighScore(false);
+    }
+  }, []);
+
   // Force re-render for lifetime bars
   useEffect(() => {
+    if (gameState !== "playing") return;
     const interval = setInterval(() => forceUpdate((n) => n + 1), 50);
     return () => clearInterval(interval);
-  }, []);
+  }, [gameState]);
 
   // Spawn targets
   useEffect(() => {
-    if (!isReady) return;
+    if (!isReady || gameState !== "playing") return;
     const interval = setInterval(() => {
       const margin = 0.12;
       const newTarget: GameTarget = {
@@ -50,30 +94,42 @@ export default function ShootingGame() {
       setTargets((prev) => [...prev, newTarget]);
     }, SPAWN_INTERVAL_BASE / speedMultiplier);
     return () => clearInterval(interval);
-  }, [isReady, speedMultiplier]);
+  }, [isReady, speedMultiplier, gameState]);
 
-  // Remove expired/hit targets
+  // Remove expired/hit targets & track misses
   useEffect(() => {
+    if (gameState !== "playing") return;
     const cleanup = setInterval(() => {
       const now = Date.now();
       setTargets((prev) => {
-        const next = prev.filter((t) => {
-          if (t.isHit) return now - t.hitTime < 500;
-          return now - t.spawnTime < TARGET_LIFETIME;
-        });
         const missed = prev.filter((t) => !t.isHit && now - t.spawnTime >= TARGET_LIFETIME);
         if (missed.length > 0) {
           setCombo(0);
           setSpeedMultiplier(1.0);
+          setMisses((m) => {
+            const newMisses = m + missed.length;
+            return newMisses;
+          });
         }
-        return next;
+        return prev.filter((t) => {
+          if (t.isHit) return now - t.hitTime < 500;
+          return now - t.spawnTime < TARGET_LIFETIME;
+        });
       });
     }, 100);
     return () => clearInterval(cleanup);
-  }, []);
+  }, [gameState]);
+
+  // Check for game over
+  useEffect(() => {
+    if (gameState === "playing" && misses >= MAX_MISSES) {
+      handleGameOver(score);
+    }
+  }, [misses, gameState, score, handleGameOver]);
 
   // Handle shooting for each hand
   useEffect(() => {
+    if (gameState !== "playing") return;
     hands.forEach((hand) => {
       if (!hand.isShooting || !hand.smoothPosition) return;
       const pos = hand.smoothPosition;
@@ -99,7 +155,7 @@ export default function ShootingGame() {
         return updated;
       });
     });
-  }, [hands.map((h) => h.isShooting).join(",")]);
+  }, [hands.map((h) => h.isShooting).join(","), gameState]);
 
   const now = Date.now();
 
@@ -109,38 +165,57 @@ export default function ShootingGame() {
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" />
       <div className="absolute inset-0 bg-background/40" />
 
-      <GameUI
-        score={score}
-        speedMultiplier={speedMultiplier}
-        status={status}
-        isReady={isReady}
-        combo={combo}
-      />
+      {gameState === "start" && (
+        <StartScreen onStart={handleStart} highScore={highScore} />
+      )}
 
-      {targets.map((target) => (
-        <Target
-          key={target.id}
-          x={target.x}
-          y={target.y}
-          size={target.size}
-          isHit={target.isHit}
-          lifetime={target.isHit ? 0 : Math.max(0, 1 - (now - target.spawnTime) / TARGET_LIFETIME)}
+      {gameState === "gameover" && (
+        <GameOverScreen
+          score={score}
+          highScore={highScore}
+          isNewHighScore={isNewHighScore}
+          onRestart={handleStart}
         />
-      ))}
+      )}
 
-      {hands.map((hand, i) => {
-        const aimPos = hand.smoothPosition || hand.handPosition;
-        if (!aimPos) return null;
-        return (
-          <Crosshair
-            key={i}
-            x={aimPos.x}
-            y={aimPos.y}
-            isShooting={hand.isShooting}
-            handIndex={i}
+      {gameState === "playing" && (
+        <>
+          <GameUI
+            score={score}
+            speedMultiplier={speedMultiplier}
+            status={status}
+            isReady={isReady}
+            combo={combo}
+            misses={misses}
+            maxMisses={MAX_MISSES}
           />
-        );
-      })}
+
+          {targets.map((target) => (
+            <Target
+              key={target.id}
+              x={target.x}
+              y={target.y}
+              size={target.size}
+              isHit={target.isHit}
+              lifetime={target.isHit ? 0 : Math.max(0, 1 - (now - target.spawnTime) / TARGET_LIFETIME)}
+            />
+          ))}
+
+          {hands.map((hand, i) => {
+            const aimPos = hand.smoothPosition || hand.handPosition;
+            if (!aimPos) return null;
+            return (
+              <Crosshair
+                key={i}
+                x={aimPos.x}
+                y={aimPos.y}
+                isShooting={hand.isShooting}
+                handIndex={i}
+              />
+            );
+          })}
+        </>
+      )}
     </div>
   );
 }
