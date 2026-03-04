@@ -6,9 +6,11 @@ interface GameUIProps {
   status: string;
   isReady: boolean;
   combo: number;
+  misses: number;
+  maxMisses: number;
 }
 
-const GameUI = memo(({ score, speedMultiplier, status, isReady, combo }: GameUIProps) => {
+const GameUI = memo(({ score, speedMultiplier, status, isReady, combo, misses, maxMisses }: GameUIProps) => {
   return (
     <div className="fixed top-4 left-4 z-40 flex flex-col gap-2">
       <div className="flex items-center gap-4">
@@ -24,7 +26,27 @@ const GameUI = memo(({ score, speedMultiplier, status, isReady, combo }: GameUIP
           </div>
         )}
       </div>
-      <div className="mt-2 px-3 py-1 border border-muted rounded text-xs uppercase tracking-widest inline-block w-max text-muted-foreground select-none">
+      {/* Lives / Misses indicator */}
+      <div className="flex items-center gap-2 mt-1">
+        <span className="text-xs uppercase tracking-widest text-muted-foreground select-none">Lives:</span>
+        <div className="flex gap-1">
+          {Array.from({ length: maxMisses }).map((_, i) => (
+            <div
+              key={i}
+              className="w-3 h-3 rounded-full transition-all duration-300"
+              style={{
+                background: i < maxMisses - misses
+                  ? "hsl(var(--game-green))"
+                  : "hsl(var(--game-target) / 0.3)",
+                boxShadow: i < maxMisses - misses
+                  ? "0 0 8px hsl(var(--game-green) / 0.5)"
+                  : "none",
+              }}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="mt-1 px-3 py-1 border border-muted rounded text-xs uppercase tracking-widest inline-block w-max text-muted-foreground select-none">
         {status}
       </div>
     </div>
