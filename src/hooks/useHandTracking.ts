@@ -17,6 +17,7 @@ interface UseHandTrackingResult {
   hands: HandState[];
   isReady: boolean;
   status: string;
+  startTracking: () => void;
 }
 
 function lerp(a: number, b: number, t: number) {
@@ -34,7 +35,8 @@ export function useHandTracking(): UseHandTrackingResult {
     { handPosition: null, smoothPosition: null, isShooting: false },
   ]);
   const [isReady, setIsReady] = useState(false);
-  const [status, setStatus] = useState("Initializing system...");
+  const [status, setStatus] = useState("Press START to begin");
+  const [started, setStarted] = useState(false);
 
   const prevPinch = useRef<boolean[]>([false, false]);
   const smoothRefs = useRef<(HandPosition | null)[]>([null, null]);
@@ -43,6 +45,7 @@ export function useHandTracking(): UseHandTrackingResult {
 
   // 60fps smooth loop
   useEffect(() => {
+    if (!started) return;
     let running = true;
     function smoothLoop() {
       if (!running) return;
@@ -59,14 +62,13 @@ export function useHandTracking(): UseHandTrackingResult {
           updated.push({
             handPosition: raw,
             smoothPosition: { ...smoothed },
-            isShooting: false, // managed separately
+            isShooting: false,
           });
         } else {
           smoothRefs.current[i] = null;
           updated.push({ handPosition: null, smoothPosition: null, isShooting: false });
         }
       }
-      // Preserve isShooting from current state
       setHands((prev) =>
         updated.map((h, i) => ({ ...h, isShooting: prev[i]?.isShooting || false }))
       );
@@ -74,7 +76,7 @@ export function useHandTracking(): UseHandTrackingResult {
     }
     smoothLoop();
     return () => { running = false; };
-  }, []);
+  }, [started]);
 
   const processFrame = useCallback(() => {
     const video = videoRef.current;
@@ -94,7 +96,10 @@ export function useHandTracking(): UseHandTrackingResult {
     animFrameRef.current = requestAnimationFrame(processFrame);
   }, []);
 
+  // Initialize camera and hand detection only after user gesture
   useEffect(() => {
+    if (!started) return;
+
     let handLandmarker: any = null;
     let mounted = true;
 
@@ -151,7 +156,6 @@ export function useHandTracking(): UseHandTrackingResult {
 
           const results = handLandmarker.detectForVideo(video, now);
 
-          // Reset all raw refs first
           for (let i = 0; i < NUM_HANDS; i++) {
             rawRefs.current[i] = null;
           }
@@ -166,7 +170,6 @@ export function useHandTracking(): UseHandTrackingResult {
               const y = indexTip.y;
               rawRefs.current[i] = { x, y };
 
-              // Pinch detection
               const handSpan = Math.sqrt(
                 Math.pow(landmarks[0].x - landmarks[9].x, 2) +
                 Math.pow(landmarks[0].y - landmarks[9].y, 2)
@@ -218,7 +221,11 @@ export function useHandTracking(): UseHandTrackingResult {
         (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
       }
     };
-  }, [processFrame]);
+  }, [started, processFrame]);
 
-  return { videoRef, canvasRef, hands, isReady, status };
+  const startTracking = useCallback(() => {
+    setStarted(true);
+  }, []);
+
+  return { videoRef, canvasRef, hands, isReady, status, startTracking };
 }

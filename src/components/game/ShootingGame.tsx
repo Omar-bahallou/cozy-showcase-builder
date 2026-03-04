@@ -35,7 +35,7 @@ function setHighScore(score: number) {
 }
 
 export default function ShootingGame() {
-  const { videoRef, canvasRef, hands, isReady, status } = useHandTracking();
+  const { videoRef, canvasRef, hands, isReady, status, startTracking } = useHandTracking();
   const [gameState, setGameState] = useState<GameState>("start");
   const [score, setScore] = useState(0);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
@@ -48,6 +48,7 @@ export default function ShootingGame() {
   const [, forceUpdate] = useState(0);
 
   const handleStart = useCallback(() => {
+    startTracking();
     setGameState("playing");
     setScore(0);
     setSpeedMultiplier(1.0);
@@ -56,7 +57,7 @@ export default function ShootingGame() {
     setMisses(0);
     setIsNewHighScore(false);
     targetIdRef.current = 0;
-  }, []);
+  }, [startTracking]);
 
   const handleGameOver = useCallback((finalScore: number) => {
     setGameState("gameover");
