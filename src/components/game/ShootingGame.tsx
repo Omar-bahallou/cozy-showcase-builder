@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useHandTracking } from "@/hooks/useHandTracking";
+import { useGameAudio } from "@/hooks/useGameAudio";
 import Crosshair from "./Crosshair";
 import Target from "./Target";
 import GameUI from "./GameUI";
