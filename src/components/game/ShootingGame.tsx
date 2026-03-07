@@ -6,11 +6,29 @@ import GameUI from "./GameUI";
 import StartScreen from "./StartScreen";
 import GameOverScreen from "./GameOverScreen";
 
+export type TargetType = "normal" | "fast" | "heavy" | "bonus";
+
+export interface TargetTypeConfig {
+  sizeRange: [number, number];
+  lifetime: number;
+  points: number;
+  color: string; // CSS variable name
+  label: string;
+}
+
+export const TARGET_TYPES: Record<TargetType, TargetTypeConfig> = {
+  normal: { sizeRange: [55, 80], lifetime: 3000, points: 10, color: "--game-target", label: "+10" },
+  fast:   { sizeRange: [35, 50], lifetime: 1800, points: 25, color: "--game-green", label: "+25" },
+  heavy:  { sizeRange: [85, 110], lifetime: 4500, points: 5, color: "--game-heavy", label: "+5" },
+  bonus:  { sizeRange: [40, 55], lifetime: 1200, points: 50, color: "--game-bonus", label: "+50" },
+};
+
 interface GameTarget {
   id: number;
   x: number;
   y: number;
   size: number;
+  type: TargetType;
   isHit: boolean;
   hitTime: number;
   spawnTime: number;
@@ -18,7 +36,6 @@ interface GameTarget {
 
 type GameState = "start" | "playing" | "gameover";
 
-const TARGET_LIFETIME = 3000;
 const SPAWN_INTERVAL_BASE = 1500;
 const HIT_RADIUS = 0.07;
 const MAX_MISSES = 5;
