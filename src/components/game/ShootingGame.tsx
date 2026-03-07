@@ -139,6 +139,7 @@ export default function ShootingGame() {
         if (missed.length > 0) {
           setCombo(0);
           setSpeedMultiplier(1.0);
+          playMiss();
           setMisses((m) => m + missed.length);
         }
         return prev.filter((t) => {
