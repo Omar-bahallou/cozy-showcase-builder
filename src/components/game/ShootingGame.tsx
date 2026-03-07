@@ -181,8 +181,14 @@ export default function ShootingGame() {
         });
         if (hit) {
           const hitTarget = updated.find((t) => t.isHit && t.hitTime === Date.now());
-          const pts = hitTarget ? TARGET_TYPES[hitTarget.type].points : 10;
-          setCombo((c) => c + 1);
+          const hitType = hitTarget?.type || "normal";
+          const pts = hitTarget ? TARGET_TYPES[hitType].points : 10;
+          playHit(hitType);
+          setCombo((c) => {
+            const newCombo = c + 1;
+            if (newCombo >= 3 && newCombo % 3 === 0) playCombo(newCombo);
+            return newCombo;
+          });
           setScore((s) => s + Math.round(pts * speedMultiplier));
           setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
         }
