@@ -175,8 +175,10 @@ export default function ShootingGame() {
           return target;
         });
         if (hit) {
+          const hitTarget = updated.find((t) => t.isHit && t.hitTime === Date.now());
+          const pts = hitTarget ? TARGET_TYPES[hitTarget.type].points : 10;
           setCombo((c) => c + 1);
-          setScore((s) => s + Math.round(10 * speedMultiplier));
+          setScore((s) => s + Math.round(pts * speedMultiplier));
           setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
         }
         return updated;
