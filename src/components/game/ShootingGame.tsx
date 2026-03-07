@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useHandTracking } from "@/hooks/useHandTracking";
+import { useGameAudio } from "@/hooks/useGameAudio";
 import Crosshair from "./Crosshair";
 import Target from "./Target";
 import GameUI from "./GameUI";
@@ -61,6 +62,7 @@ export default function ShootingGame() {
   const [misses, setMisses] = useState(0);
   const [highScore, setHighScoreState] = useState(getHighScore);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const { playShoot, playHit, playCombo, playMiss, playGameOver } = useGameAudio();
   const targetIdRef = useRef(0);
   const [, forceUpdate] = useState(0);
 
@@ -78,6 +80,7 @@ export default function ShootingGame() {
 
   const handleGameOver = useCallback((finalScore: number) => {
     setGameState("gameover");
+    playGameOver();
     const prev = getHighScore();
     if (finalScore > prev) {
       setHighScore(finalScore);
@@ -86,7 +89,7 @@ export default function ShootingGame() {
     } else {
       setIsNewHighScore(false);
     }
-  }, []);
+  }, [playGameOver]);
 
   // Force re-render for lifetime bars
   useEffect(() => {
@@ -136,6 +139,7 @@ export default function ShootingGame() {
         if (missed.length > 0) {
           setCombo(0);
           setSpeedMultiplier(1.0);
+          playMiss();
           setMisses((m) => m + missed.length);
         }
         return prev.filter((t) => {
@@ -159,6 +163,7 @@ export default function ShootingGame() {
     if (gameState !== "playing") return;
     hands.forEach((hand) => {
       if (!hand.isShooting || !hand.smoothPosition) return;
+      playShoot();
       const pos = hand.smoothPosition;
 
       setTargets((prev) => {
@@ -176,8 +181,14 @@ export default function ShootingGame() {
         });
         if (hit) {
           const hitTarget = updated.find((t) => t.isHit && t.hitTime === Date.now());
-          const pts = hitTarget ? TARGET_TYPES[hitTarget.type].points : 10;
-          setCombo((c) => c + 1);
+          const hitType = hitTarget?.type || "normal";
+          const pts = hitTarget ? TARGET_TYPES[hitType].points : 10;
+          playHit(hitType);
+          setCombo((c) => {
+            const newCombo = c + 1;
+            if (newCombo >= 3 && newCombo % 3 === 0) playCombo(newCombo);
+            return newCombo;
+          });
           setScore((s) => s + Math.round(pts * speedMultiplier));
           setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
         }
