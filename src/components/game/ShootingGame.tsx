@@ -100,11 +100,23 @@ export default function ShootingGame() {
     if (!isReady || gameState !== "playing") return;
     const interval = setInterval(() => {
       const margin = 0.12;
+      // Pick random type with weighted probability
+      const roll = Math.random();
+      let type: TargetType;
+      if (roll < 0.5) type = "normal";
+      else if (roll < 0.75) type = "fast";
+      else if (roll < 0.92) type = "heavy";
+      else type = "bonus";
+
+      const config = TARGET_TYPES[type];
+      const size = config.sizeRange[0] + Math.random() * (config.sizeRange[1] - config.sizeRange[0]);
+
       const newTarget: GameTarget = {
         id: targetIdRef.current++,
         x: margin + Math.random() * (1 - 2 * margin),
         y: margin + Math.random() * (1 - 2 * margin),
-        size: 60 + Math.random() * 40,
+        size,
+        type,
         isHit: false,
         hitTime: 0,
         spawnTime: Date.now(),
