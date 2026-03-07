@@ -132,18 +132,15 @@ export default function ShootingGame() {
     const cleanup = setInterval(() => {
       const now = Date.now();
       setTargets((prev) => {
-        const missed = prev.filter((t) => !t.isHit && now - t.spawnTime >= TARGET_LIFETIME);
+        const missed = prev.filter((t) => !t.isHit && now - t.spawnTime >= TARGET_TYPES[t.type].lifetime);
         if (missed.length > 0) {
           setCombo(0);
           setSpeedMultiplier(1.0);
-          setMisses((m) => {
-            const newMisses = m + missed.length;
-            return newMisses;
-          });
+          setMisses((m) => m + missed.length);
         }
         return prev.filter((t) => {
           if (t.isHit) return now - t.hitTime < 500;
-          return now - t.spawnTime < TARGET_LIFETIME;
+          return now - t.spawnTime < TARGET_TYPES[t.type].lifetime;
         });
       });
     }, 100);
