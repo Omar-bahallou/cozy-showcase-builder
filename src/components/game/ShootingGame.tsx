@@ -80,6 +80,7 @@ export default function ShootingGame() {
 
   const handleGameOver = useCallback((finalScore: number) => {
     setGameState("gameover");
+    playGameOver();
     const prev = getHighScore();
     if (finalScore > prev) {
       setHighScore(finalScore);
@@ -88,7 +89,7 @@ export default function ShootingGame() {
     } else {
       setIsNewHighScore(false);
     }
-  }, []);
+  }, [playGameOver]);
 
   // Force re-render for lifetime bars
   useEffect(() => {
