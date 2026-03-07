@@ -6,11 +6,29 @@ import GameUI from "./GameUI";
 import StartScreen from "./StartScreen";
 import GameOverScreen from "./GameOverScreen";
 
+export type TargetType = "normal" | "fast" | "heavy" | "bonus";
+
+export interface TargetTypeConfig {
+  sizeRange: [number, number];
+  lifetime: number;
+  points: number;
+  color: string; // CSS variable name
+  label: string;
+}
+
+export const TARGET_TYPES: Record<TargetType, TargetTypeConfig> = {
+  normal: { sizeRange: [55, 80], lifetime: 3000, points: 10, color: "--game-target", label: "+10" },
+  fast:   { sizeRange: [35, 50], lifetime: 1800, points: 25, color: "--game-green", label: "+25" },
+  heavy:  { sizeRange: [85, 110], lifetime: 4500, points: 5, color: "--game-heavy", label: "+5" },
+  bonus:  { sizeRange: [40, 55], lifetime: 1200, points: 50, color: "--game-bonus", label: "+50" },
+};
+
 interface GameTarget {
   id: number;
   x: number;
   y: number;
   size: number;
+  type: TargetType;
   isHit: boolean;
   hitTime: number;
   spawnTime: number;
@@ -18,7 +36,6 @@ interface GameTarget {
 
 type GameState = "start" | "playing" | "gameover";
 
-const TARGET_LIFETIME = 3000;
 const SPAWN_INTERVAL_BASE = 1500;
 const HIT_RADIUS = 0.07;
 const MAX_MISSES = 5;
@@ -83,11 +100,23 @@ export default function ShootingGame() {
     if (!isReady || gameState !== "playing") return;
     const interval = setInterval(() => {
       const margin = 0.12;
+      // Pick random type with weighted probability
+      const roll = Math.random();
+      let type: TargetType;
+      if (roll < 0.5) type = "normal";
+      else if (roll < 0.75) type = "fast";
+      else if (roll < 0.92) type = "heavy";
+      else type = "bonus";
+
+      const config = TARGET_TYPES[type];
+      const size = config.sizeRange[0] + Math.random() * (config.sizeRange[1] - config.sizeRange[0]);
+
       const newTarget: GameTarget = {
         id: targetIdRef.current++,
         x: margin + Math.random() * (1 - 2 * margin),
         y: margin + Math.random() * (1 - 2 * margin),
-        size: 60 + Math.random() * 40,
+        size,
+        type,
         isHit: false,
         hitTime: 0,
         spawnTime: Date.now(),
@@ -103,18 +132,15 @@ export default function ShootingGame() {
     const cleanup = setInterval(() => {
       const now = Date.now();
       setTargets((prev) => {
-        const missed = prev.filter((t) => !t.isHit && now - t.spawnTime >= TARGET_LIFETIME);
+        const missed = prev.filter((t) => !t.isHit && now - t.spawnTime >= TARGET_TYPES[t.type].lifetime);
         if (missed.length > 0) {
           setCombo(0);
           setSpeedMultiplier(1.0);
-          setMisses((m) => {
-            const newMisses = m + missed.length;
-            return newMisses;
-          });
+          setMisses((m) => m + missed.length);
         }
         return prev.filter((t) => {
           if (t.isHit) return now - t.hitTime < 500;
-          return now - t.spawnTime < TARGET_LIFETIME;
+          return now - t.spawnTime < TARGET_TYPES[t.type].lifetime;
         });
       });
     }, 100);
@@ -149,8 +175,10 @@ export default function ShootingGame() {
           return target;
         });
         if (hit) {
+          const hitTarget = updated.find((t) => t.isHit && t.hitTime === Date.now());
+          const pts = hitTarget ? TARGET_TYPES[hitTarget.type].points : 10;
           setCombo((c) => c + 1);
-          setScore((s) => s + Math.round(10 * speedMultiplier));
+          setScore((s) => s + Math.round(pts * speedMultiplier));
           setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
         }
         return updated;
@@ -191,16 +219,22 @@ export default function ShootingGame() {
             maxMisses={MAX_MISSES}
           />
 
-          {targets.map((target) => (
-            <Target
-              key={target.id}
-              x={target.x}
-              y={target.y}
-              size={target.size}
-              isHit={target.isHit}
-              lifetime={target.isHit ? 0 : Math.max(0, 1 - (now - target.spawnTime) / TARGET_LIFETIME)}
-            />
-          ))}
+          {targets.map((target) => {
+            const config = TARGET_TYPES[target.type];
+            return (
+              <Target
+                key={target.id}
+                x={target.x}
+                y={target.y}
+                size={target.size}
+                isHit={target.isHit}
+                lifetime={target.isHit ? 0 : Math.max(0, 1 - (now - target.spawnTime) / config.lifetime)}
+                targetType={target.type}
+                points={config.points}
+                colorVar={config.color}
+              />
+            );
+          })}
 
           {hands.map((hand, i) => {
             const aimPos = hand.smoothPosition || hand.handPosition;
