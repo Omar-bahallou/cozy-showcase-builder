@@ -163,6 +163,7 @@ export default function ShootingGame() {
     if (gameState !== "playing") return;
     hands.forEach((hand) => {
       if (!hand.isShooting || !hand.smoothPosition) return;
+      playShoot();
       const pos = hand.smoothPosition;
 
       setTargets((prev) => {
