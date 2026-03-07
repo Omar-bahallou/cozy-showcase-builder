@@ -62,6 +62,7 @@ export default function ShootingGame() {
   const [misses, setMisses] = useState(0);
   const [highScore, setHighScoreState] = useState(getHighScore);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
+  const { playShoot, playHit, playCombo, playMiss, playGameOver } = useGameAudio();
   const targetIdRef = useRef(0);
   const [, forceUpdate] = useState(0);
 
