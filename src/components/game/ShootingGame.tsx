@@ -219,16 +219,22 @@ export default function ShootingGame() {
             maxMisses={MAX_MISSES}
           />
 
-          {targets.map((target) => (
-            <Target
-              key={target.id}
-              x={target.x}
-              y={target.y}
-              size={target.size}
-              isHit={target.isHit}
-              lifetime={target.isHit ? 0 : Math.max(0, 1 - (now - target.spawnTime) / TARGET_LIFETIME)}
-            />
-          ))}
+          {targets.map((target) => {
+            const config = TARGET_TYPES[target.type];
+            return (
+              <Target
+                key={target.id}
+                x={target.x}
+                y={target.y}
+                size={target.size}
+                isHit={target.isHit}
+                lifetime={target.isHit ? 0 : Math.max(0, 1 - (now - target.spawnTime) / config.lifetime)}
+                targetType={target.type}
+                points={config.points}
+                colorVar={config.color}
+              />
+            );
+          })}
 
           {hands.map((hand, i) => {
             const aimPos = hand.smoothPosition || hand.handPosition;
