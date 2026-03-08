@@ -7,7 +7,7 @@ import GameUI from "./GameUI";
 import StartScreen from "./StartScreen";
 import GameOverScreen from "./GameOverScreen";
 
-export type TargetType = "normal" | "fast" | "heavy" | "bonus";
+export type TargetType = "normal" | "fast" | "heavy" | "bonus" | "decoy";
 
 export interface TargetTypeConfig {
   sizeRange: [number, number];
@@ -22,6 +22,7 @@ export const TARGET_TYPES: Record<TargetType, TargetTypeConfig> = {
   fast:   { sizeRange: [35, 50], lifetime: 1800, points: 25, color: "--game-green", label: "+25" },
   heavy:  { sizeRange: [85, 110], lifetime: 4500, points: 5, color: "--game-heavy", label: "+5" },
   bonus:  { sizeRange: [40, 55], lifetime: 1200, points: 50, color: "--game-bonus", label: "+50" },
+  decoy:  { sizeRange: [60, 75], lifetime: 3500, points: -20, color: "--destructive", label: "-20" },
 };
 
 interface GameTarget {
@@ -106,10 +107,11 @@ export default function ShootingGame() {
       // Pick random type with weighted probability
       const roll = Math.random();
       let type: TargetType;
-      if (roll < 0.5) type = "normal";
-      else if (roll < 0.75) type = "fast";
-      else if (roll < 0.92) type = "heavy";
-      else type = "bonus";
+      if (roll < 0.4) type = "normal";
+      else if (roll < 0.65) type = "fast";
+      else if (roll < 0.82) type = "heavy";
+      else if (roll < 0.94) type = "bonus";
+      else type = "decoy";
 
       const config = TARGET_TYPES[type];
       const size = config.sizeRange[0] + Math.random() * (config.sizeRange[1] - config.sizeRange[0]);
@@ -184,13 +186,21 @@ export default function ShootingGame() {
           const hitType = hitTarget?.type || "normal";
           const pts = hitTarget ? TARGET_TYPES[hitType].points : 10;
           playHit(hitType);
-          setCombo((c) => {
-            const newCombo = c + 1;
-            if (newCombo >= 3 && newCombo % 3 === 0) playCombo(newCombo);
-            return newCombo;
-          });
-          setScore((s) => s + Math.round(pts * speedMultiplier));
-          setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
+          if (hitType === "decoy") {
+            // Decoy penalty: reset combo, reduce speed, subtract points
+            setCombo(0);
+            setSpeedMultiplier(1.0);
+            setScore((s) => Math.max(0, s + pts)); // pts is negative for decoy
+            setMisses((m) => m + 1); // Count as a miss
+          } else {
+            setCombo((c) => {
+              const newCombo = c + 1;
+              if (newCombo >= 3 && newCombo % 3 === 0) playCombo(newCombo);
+              return newCombo;
+            });
+            setScore((s) => s + Math.round(pts * speedMultiplier));
+            setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
+          }
         }
         return updated;
       });

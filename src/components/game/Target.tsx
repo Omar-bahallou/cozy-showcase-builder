@@ -33,6 +33,7 @@ const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar
   // Type-specific decorations
   const isBonus = targetType === "bonus";
   const isFast = targetType === "fast";
+  const isDecoy = targetType === "decoy";
 
   return (
     <div
@@ -129,6 +130,15 @@ const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar
                 style={{ color, fontSize: size * 0.18 }}
               >
                 ★
+              </div>
+            )}
+            {/* Decoy skull icon */}
+            {isDecoy && (
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-black animate-pulse select-none"
+                style={{ color, fontSize: size * 0.25 }}
+              >
+                💀
               </div>
             )}
           </div>

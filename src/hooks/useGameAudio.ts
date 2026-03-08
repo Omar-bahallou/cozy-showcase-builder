@@ -32,7 +32,7 @@ export function useGameAudio() {
     osc.connect(gain).connect(ctx.destination);
 
     const freqMap: Record<string, number> = {
-      normal: 600, fast: 900, heavy: 350, bonus: 1200,
+      normal: 600, fast: 900, heavy: 350, bonus: 1200, decoy: 150,
     };
     const freq = freqMap[targetType] || 600;
 
@@ -57,6 +57,20 @@ export function useGameAudio() {
       g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.2);
       osc2.start(ctx.currentTime + 0.05);
       osc2.stop(ctx.currentTime + 0.2);
+    }
+
+    // Decoy penalty sound
+    if (targetType === "decoy") {
+      const osc3 = ctx.createOscillator();
+      const g3 = ctx.createGain();
+      osc3.connect(g3).connect(ctx.destination);
+      osc3.type = "sawtooth";
+      osc3.frequency.setValueAtTime(200, ctx.currentTime + 0.1);
+      osc3.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.4);
+      g3.gain.setValueAtTime(0.15, ctx.currentTime + 0.1);
+      g3.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc3.start(ctx.currentTime + 0.1);
+      osc3.stop(ctx.currentTime + 0.4);
     }
   }, []);
 
