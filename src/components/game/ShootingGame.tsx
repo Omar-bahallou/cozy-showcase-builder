@@ -107,10 +107,11 @@ export default function ShootingGame() {
       // Pick random type with weighted probability
       const roll = Math.random();
       let type: TargetType;
-      if (roll < 0.5) type = "normal";
-      else if (roll < 0.75) type = "fast";
-      else if (roll < 0.92) type = "heavy";
-      else type = "bonus";
+      if (roll < 0.4) type = "normal";
+      else if (roll < 0.65) type = "fast";
+      else if (roll < 0.82) type = "heavy";
+      else if (roll < 0.94) type = "bonus";
+      else type = "decoy";
 
       const config = TARGET_TYPES[type];
       const size = config.sizeRange[0] + Math.random() * (config.sizeRange[1] - config.sizeRange[0]);
