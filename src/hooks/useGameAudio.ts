@@ -32,7 +32,7 @@ export function useGameAudio() {
     osc.connect(gain).connect(ctx.destination);
 
     const freqMap: Record<string, number> = {
-      normal: 600, fast: 900, heavy: 350, bonus: 1200,
+      normal: 600, fast: 900, heavy: 350, bonus: 1200, decoy: 150,
     };
     const freq = freqMap[targetType] || 600;
 
