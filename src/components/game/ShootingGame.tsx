@@ -186,13 +186,21 @@ export default function ShootingGame() {
           const hitType = hitTarget?.type || "normal";
           const pts = hitTarget ? TARGET_TYPES[hitType].points : 10;
           playHit(hitType);
-          setCombo((c) => {
-            const newCombo = c + 1;
-            if (newCombo >= 3 && newCombo % 3 === 0) playCombo(newCombo);
-            return newCombo;
-          });
-          setScore((s) => s + Math.round(pts * speedMultiplier));
-          setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
+          if (hitType === "decoy") {
+            // Decoy penalty: reset combo, reduce speed, subtract points
+            setCombo(0);
+            setSpeedMultiplier(1.0);
+            setScore((s) => Math.max(0, s + pts)); // pts is negative for decoy
+            setMisses((m) => m + 1); // Count as a miss
+          } else {
+            setCombo((c) => {
+              const newCombo = c + 1;
+              if (newCombo >= 3 && newCombo % 3 === 0) playCombo(newCombo);
+              return newCombo;
+            });
+            setScore((s) => s + Math.round(pts * speedMultiplier));
+            setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
+          }
         }
         return updated;
       });

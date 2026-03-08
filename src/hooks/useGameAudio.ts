@@ -58,6 +58,20 @@ export function useGameAudio() {
       osc2.start(ctx.currentTime + 0.05);
       osc2.stop(ctx.currentTime + 0.2);
     }
+
+    // Decoy penalty sound
+    if (targetType === "decoy") {
+      const osc3 = ctx.createOscillator();
+      const g3 = ctx.createGain();
+      osc3.connect(g3).connect(ctx.destination);
+      osc3.type = "sawtooth";
+      osc3.frequency.setValueAtTime(200, ctx.currentTime + 0.1);
+      osc3.frequency.exponentialRampToValueAtTime(50, ctx.currentTime + 0.4);
+      g3.gain.setValueAtTime(0.15, ctx.currentTime + 0.1);
+      g3.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+      osc3.start(ctx.currentTime + 0.1);
+      osc3.stop(ctx.currentTime + 0.4);
+    }
   }, []);
 
   const playCombo = useCallback((combo: number) => {
