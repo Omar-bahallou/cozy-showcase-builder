@@ -22,6 +22,7 @@ export const TARGET_TYPES: Record<TargetType, TargetTypeConfig> = {
   fast:   { sizeRange: [35, 50], lifetime: 1800, points: 25, color: "--game-green", label: "+25" },
   heavy:  { sizeRange: [85, 110], lifetime: 4500, points: 5, color: "--game-heavy", label: "+5" },
   bonus:  { sizeRange: [40, 55], lifetime: 1200, points: 50, color: "--game-bonus", label: "+50" },
+  decoy:  { sizeRange: [60, 75], lifetime: 3500, points: -20, color: "--destructive", label: "-20" },
 };
 
 interface GameTarget {
