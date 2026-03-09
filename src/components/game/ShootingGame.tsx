@@ -97,10 +97,13 @@ export default function ShootingGame() {
     setScore(0);
     setSpeedMultiplier(1.0);
     setTargets([]);
+    setPowerUps([]);
+    setActivePowerUps([]);
     setCombo(0);
     setMisses(0);
     setIsNewHighScore(false);
     targetIdRef.current = 0;
+    powerUpIdRef.current = 0;
   }, [startTracking]);
 
   const handleGameOver = useCallback((finalScore: number) => {
