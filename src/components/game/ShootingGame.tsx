@@ -202,6 +202,7 @@ export default function ShootingGame() {
       setActivePowerUps((prev) => prev.filter((p) => now - p.startTime < p.duration));
     }, 100);
     return () => clearInterval(cleanup);
+  }, [gameState]);
 
   // Remove expired/hit targets & track misses
   useEffect(() => {
