@@ -3,6 +3,8 @@ import { useHandTracking } from "@/hooks/useHandTracking";
 import { useGameAudio } from "@/hooks/useGameAudio";
 import Crosshair from "./Crosshair";
 import Target from "./Target";
+import PowerUp, { POWER_UP_TYPES, type PowerUpType } from "./PowerUp";
+import PowerUpIndicator from "./PowerUpIndicator";
 import GameUI from "./GameUI";
 import StartScreen from "./StartScreen";
 import GameOverScreen from "./GameOverScreen";
@@ -36,12 +38,31 @@ interface GameTarget {
   spawnTime: number;
 }
 
+interface GamePowerUp {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  type: PowerUpType;
+  isCollected: boolean;
+  collectedTime: number;
+  spawnTime: number;
+}
+
+interface ActivePowerUp {
+  type: PowerUpType;
+  startTime: number;
+  duration: number;
+}
+
 type GameState = "start" | "playing" | "gameover";
 
 const SPAWN_INTERVAL_BASE = 1500;
 const HIT_RADIUS = 0.07;
 const MAX_MISSES = 5;
 const HIGH_SCORE_KEY = "hand-shooter-high-score";
+const POWER_UP_SPAWN_INTERVAL = 8000; // 8 seconds
+const POWER_UP_COLLECTION_RADIUS = 0.08;
 
 function getHighScore(): number {
   try {
@@ -59,12 +80,15 @@ export default function ShootingGame() {
   const [score, setScore] = useState(0);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
   const [targets, setTargets] = useState<GameTarget[]>([]);
+  const [powerUps, setPowerUps] = useState<GamePowerUp[]>([]);
+  const [activePowerUps, setActivePowerUps] = useState<ActivePowerUp[]>([]);
   const [combo, setCombo] = useState(0);
   const [misses, setMisses] = useState(0);
   const [highScore, setHighScoreState] = useState(getHighScore);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
   const { playShoot, playHit, playCombo, playMiss, playGameOver } = useGameAudio();
   const targetIdRef = useRef(0);
+  const powerUpIdRef = useRef(0);
   const [, forceUpdate] = useState(0);
 
   const handleStart = useCallback(() => {
@@ -73,10 +97,13 @@ export default function ShootingGame() {
     setScore(0);
     setSpeedMultiplier(1.0);
     setTargets([]);
+    setPowerUps([]);
+    setActivePowerUps([]);
     setCombo(0);
     setMisses(0);
     setIsNewHighScore(false);
     targetIdRef.current = 0;
+    powerUpIdRef.current = 0;
   }, [startTracking]);
 
   const handleGameOver = useCallback((finalScore: number) => {
@@ -102,6 +129,11 @@ export default function ShootingGame() {
   // Spawn targets
   useEffect(() => {
     if (!isReady || gameState !== "playing") return;
+    
+    // Apply slow motion power-up
+    const hasSlowmo = activePowerUps.some(p => p.type === "slowmo" && Date.now() - p.startTime < p.duration);
+    const effectiveSpeedMultiplier = hasSlowmo ? speedMultiplier * 0.3 : speedMultiplier;
+    
     const interval = setInterval(() => {
       const margin = 0.12;
       // Pick random type with weighted probability
@@ -127,9 +159,50 @@ export default function ShootingGame() {
         spawnTime: Date.now(),
       };
       setTargets((prev) => [...prev, newTarget]);
-    }, SPAWN_INTERVAL_BASE / speedMultiplier);
+    }, SPAWN_INTERVAL_BASE / effectiveSpeedMultiplier);
     return () => clearInterval(interval);
-  }, [isReady, speedMultiplier, gameState]);
+  }, [isReady, speedMultiplier, gameState, activePowerUps]);
+
+  // Spawn power-ups
+  useEffect(() => {
+    if (!isReady || gameState !== "playing") return;
+    const interval = setInterval(() => {
+      const margin = 0.15;
+      const powerUpTypes: PowerUpType[] = ["slowmo", "shield", "multiplier"];
+      const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+
+      const newPowerUp: GamePowerUp = {
+        id: powerUpIdRef.current++,
+        x: margin + Math.random() * (1 - 2 * margin),
+        y: margin + Math.random() * (1 - 2 * margin),
+        size: 50,
+        type,
+        isCollected: false,
+        collectedTime: 0,
+        spawnTime: Date.now(),
+      };
+      setPowerUps((prev) => [...prev, newPowerUp]);
+    }, POWER_UP_SPAWN_INTERVAL);
+    return () => clearInterval(interval);
+  }, [isReady, gameState]);
+
+  // Remove expired power-ups and update active power-ups
+  useEffect(() => {
+    if (gameState !== "playing") return;
+    const cleanup = setInterval(() => {
+      const now = Date.now();
+      
+      // Clean up collected power-ups
+      setPowerUps((prev) => prev.filter((p) => {
+        if (p.isCollected) return now - p.collectedTime < 1000;
+        return now - p.spawnTime < 15000; // 15 second lifetime
+      }));
+
+      // Clean up expired active power-ups
+      setActivePowerUps((prev) => prev.filter((p) => now - p.startTime < p.duration));
+    }, 100);
+    return () => clearInterval(cleanup);
+  }, [gameState]);
 
   // Remove expired/hit targets & track misses
   useEffect(() => {
@@ -168,6 +241,29 @@ export default function ShootingGame() {
       playShoot();
       const pos = hand.smoothPosition;
 
+      // Check for power-up collection
+      setPowerUps((prev) => {
+        let collected = false;
+        const updated = prev.map((powerUp) => {
+          if (powerUp.isCollected) return powerUp;
+          const dx = powerUp.x - pos.x;
+          const dy = powerUp.y - pos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < POWER_UP_COLLECTION_RADIUS + powerUp.size / 2000) {
+            collected = true;
+            const config = POWER_UP_TYPES[powerUp.type];
+            setActivePowerUps((active) => [
+              ...active.filter(p => p.type !== powerUp.type), // Remove existing same type
+              { type: powerUp.type, startTime: Date.now(), duration: config.duration }
+            ]);
+            return { ...powerUp, isCollected: true, collectedTime: Date.now() };
+          }
+          return powerUp;
+        });
+        return updated;
+      });
+
+      // Check for target hits
       setTargets((prev) => {
         let hit = false;
         const updated = prev.map((target) => {
@@ -184,14 +280,26 @@ export default function ShootingGame() {
         if (hit) {
           const hitTarget = updated.find((t) => t.isHit && t.hitTime === Date.now());
           const hitType = hitTarget?.type || "normal";
-          const pts = hitTarget ? TARGET_TYPES[hitType].points : 10;
+          const basePts = hitTarget ? TARGET_TYPES[hitType].points : 10;
+          
+          // Apply multiplier power-up
+          const hasMultiplier = activePowerUps.some(p => p.type === "multiplier" && Date.now() - p.startTime < p.duration);
+          const pts = hasMultiplier ? basePts * 2 : basePts;
+          
           playHit(hitType);
           if (hitType === "decoy") {
             // Decoy penalty: reset combo, reduce speed, subtract points
-            setCombo(0);
-            setSpeedMultiplier(1.0);
-            setScore((s) => Math.max(0, s + pts)); // pts is negative for decoy
-            setMisses((m) => m + 1); // Count as a miss
+            // Shield protects from decoy penalty
+            const hasShield = activePowerUps.some(p => p.type === "shield" && Date.now() - p.startTime < p.duration);
+            if (!hasShield) {
+              setCombo(0);
+              setSpeedMultiplier(1.0);
+              setScore((s) => Math.max(0, s + basePts)); // basePts is negative for decoy
+              setMisses((m) => m + 1); // Count as a miss
+            } else {
+              // Shield absorbs the decoy hit, still give positive points
+              setScore((s) => s + Math.abs(basePts));
+            }
           } else {
             setCombo((c) => {
               const newCombo = c + 1;
@@ -205,7 +313,7 @@ export default function ShootingGame() {
         return updated;
       });
     });
-  }, [hands.map((h) => h.isShooting).join(","), gameState]);
+  }, [hands.map((h) => h.isShooting).join(","), gameState, activePowerUps]);
 
   const now = Date.now();
 
@@ -230,6 +338,7 @@ export default function ShootingGame() {
 
       {gameState === "playing" && (
         <>
+          <PowerUpIndicator activePowerUps={activePowerUps} currentTime={now} />
           <GameUI
             score={score}
             speedMultiplier={speedMultiplier}
@@ -256,6 +365,18 @@ export default function ShootingGame() {
               />
             );
           })}
+
+          {powerUps.map((powerUp) => (
+            <PowerUp
+              key={powerUp.id}
+              x={powerUp.x}
+              y={powerUp.y}
+              size={powerUp.size}
+              type={powerUp.type}
+              isCollected={powerUp.isCollected}
+              collectedTime={powerUp.collectedTime}
+            />
+          ))}
 
           {hands.map((hand, i) => {
             const aimPos = hand.smoothPosition || hand.handPosition;
