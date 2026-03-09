@@ -38,6 +38,23 @@ interface GameTarget {
   spawnTime: number;
 }
 
+interface GamePowerUp {
+  id: number;
+  x: number;
+  y: number;
+  size: number;
+  type: PowerUpType;
+  isCollected: boolean;
+  collectedTime: number;
+  spawnTime: number;
+}
+
+interface ActivePowerUp {
+  type: PowerUpType;
+  startTime: number;
+  duration: number;
+}
+
 type GameState = "start" | "playing" | "gameover";
 
 const SPAWN_INTERVAL_BASE = 1500;
