@@ -80,12 +80,15 @@ export default function ShootingGame() {
   const [score, setScore] = useState(0);
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
   const [targets, setTargets] = useState<GameTarget[]>([]);
+  const [powerUps, setPowerUps] = useState<GamePowerUp[]>([]);
+  const [activePowerUps, setActivePowerUps] = useState<ActivePowerUp[]>([]);
   const [combo, setCombo] = useState(0);
   const [misses, setMisses] = useState(0);
   const [highScore, setHighScoreState] = useState(getHighScore);
   const [isNewHighScore, setIsNewHighScore] = useState(false);
   const { playShoot, playHit, playCombo, playMiss, playGameOver } = useGameAudio();
   const targetIdRef = useRef(0);
+  const powerUpIdRef = useRef(0);
   const [, forceUpdate] = useState(0);
 
   const handleStart = useCallback(() => {
