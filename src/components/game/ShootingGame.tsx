@@ -235,6 +235,29 @@ export default function ShootingGame() {
       playShoot();
       const pos = hand.smoothPosition;
 
+      // Check for power-up collection
+      setPowerUps((prev) => {
+        let collected = false;
+        const updated = prev.map((powerUp) => {
+          if (powerUp.isCollected) return powerUp;
+          const dx = powerUp.x - pos.x;
+          const dy = powerUp.y - pos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < POWER_UP_COLLECTION_RADIUS + powerUp.size / 2000) {
+            collected = true;
+            const config = POWER_UP_TYPES[powerUp.type];
+            setActivePowerUps((active) => [
+              ...active.filter(p => p.type !== powerUp.type), // Remove existing same type
+              { type: powerUp.type, startTime: Date.now(), duration: config.duration }
+            ]);
+            return { ...powerUp, isCollected: true, collectedTime: Date.now() };
+          }
+          return powerUp;
+        });
+        return updated;
+      });
+
+      // Check for target hits
       setTargets((prev) => {
         let hit = false;
         const updated = prev.map((target) => {
@@ -251,14 +274,26 @@ export default function ShootingGame() {
         if (hit) {
           const hitTarget = updated.find((t) => t.isHit && t.hitTime === Date.now());
           const hitType = hitTarget?.type || "normal";
-          const pts = hitTarget ? TARGET_TYPES[hitType].points : 10;
+          const basePts = hitTarget ? TARGET_TYPES[hitType].points : 10;
+          
+          // Apply multiplier power-up
+          const hasMultiplier = activePowerUps.some(p => p.type === "multiplier" && Date.now() - p.startTime < p.duration);
+          const pts = hasMultiplier ? basePts * 2 : basePts;
+          
           playHit(hitType);
           if (hitType === "decoy") {
             // Decoy penalty: reset combo, reduce speed, subtract points
-            setCombo(0);
-            setSpeedMultiplier(1.0);
-            setScore((s) => Math.max(0, s + pts)); // pts is negative for decoy
-            setMisses((m) => m + 1); // Count as a miss
+            // Shield protects from decoy penalty
+            const hasShield = activePowerUps.some(p => p.type === "shield" && Date.now() - p.startTime < p.duration);
+            if (!hasShield) {
+              setCombo(0);
+              setSpeedMultiplier(1.0);
+              setScore((s) => Math.max(0, s + basePts)); // basePts is negative for decoy
+              setMisses((m) => m + 1); // Count as a miss
+            } else {
+              // Shield absorbs the decoy hit, still give positive points
+              setScore((s) => s + Math.abs(basePts));
+            }
           } else {
             setCombo((c) => {
               const newCombo = c + 1;
@@ -272,7 +307,7 @@ export default function ShootingGame() {
         return updated;
       });
     });
-  }, [hands.map((h) => h.isShooting).join(","), gameState]);
+  }, [hands.map((h) => h.isShooting).join(","), gameState, activePowerUps]);
 
   const now = Date.now();
 
