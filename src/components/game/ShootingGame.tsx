@@ -129,6 +129,11 @@ export default function ShootingGame() {
   // Spawn targets
   useEffect(() => {
     if (!isReady || gameState !== "playing") return;
+    
+    // Apply slow motion power-up
+    const hasSlowmo = activePowerUps.some(p => p.type === "slowmo" && Date.now() - p.startTime < p.duration);
+    const effectiveSpeedMultiplier = hasSlowmo ? speedMultiplier * 0.3 : speedMultiplier;
+    
     const interval = setInterval(() => {
       const margin = 0.12;
       // Pick random type with weighted probability
@@ -154,9 +159,9 @@ export default function ShootingGame() {
         spawnTime: Date.now(),
       };
       setTargets((prev) => [...prev, newTarget]);
-    }, SPAWN_INTERVAL_BASE / speedMultiplier);
+    }, SPAWN_INTERVAL_BASE / effectiveSpeedMultiplier);
     return () => clearInterval(interval);
-  }, [isReady, speedMultiplier, gameState]);
+  }, [isReady, speedMultiplier, gameState, activePowerUps]);
 
   // Spawn power-ups
   useEffect(() => {
