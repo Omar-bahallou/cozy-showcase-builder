@@ -3,6 +3,8 @@ import { useHandTracking } from "@/hooks/useHandTracking";
 import { useGameAudio } from "@/hooks/useGameAudio";
 import Crosshair from "./Crosshair";
 import Target from "./Target";
+import PowerUp, { POWER_UP_TYPES, type PowerUpType } from "./PowerUp";
+import PowerUpIndicator from "./PowerUpIndicator";
 import GameUI from "./GameUI";
 import StartScreen from "./StartScreen";
 import GameOverScreen from "./GameOverScreen";
