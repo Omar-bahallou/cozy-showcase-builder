@@ -337,6 +337,7 @@ export default function ShootingGame() {
 
       {gameState === "playing" && (
         <>
+          <PowerUpIndicator activePowerUps={activePowerUps} currentTime={now} />
           <GameUI
             score={score}
             speedMultiplier={speedMultiplier}
@@ -363,6 +364,18 @@ export default function ShootingGame() {
               />
             );
           })}
+
+          {powerUps.map((powerUp) => (
+            <PowerUp
+              key={powerUp.id}
+              x={powerUp.x}
+              y={powerUp.y}
+              size={powerUp.size}
+              type={powerUp.type}
+              isCollected={powerUp.isCollected}
+              collectedTime={powerUp.collectedTime}
+            />
+          ))}
 
           {hands.map((hand, i) => {
             const aimPos = hand.smoothPosition || hand.handPosition;
