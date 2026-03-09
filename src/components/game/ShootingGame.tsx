@@ -158,6 +158,46 @@ export default function ShootingGame() {
     return () => clearInterval(interval);
   }, [isReady, speedMultiplier, gameState]);
 
+  // Spawn power-ups
+  useEffect(() => {
+    if (!isReady || gameState !== "playing") return;
+    const interval = setInterval(() => {
+      const margin = 0.15;
+      const powerUpTypes: PowerUpType[] = ["slowmo", "shield", "multiplier"];
+      const type = powerUpTypes[Math.floor(Math.random() * powerUpTypes.length)];
+
+      const newPowerUp: GamePowerUp = {
+        id: powerUpIdRef.current++,
+        x: margin + Math.random() * (1 - 2 * margin),
+        y: margin + Math.random() * (1 - 2 * margin),
+        size: 50,
+        type,
+        isCollected: false,
+        collectedTime: 0,
+        spawnTime: Date.now(),
+      };
+      setPowerUps((prev) => [...prev, newPowerUp]);
+    }, POWER_UP_SPAWN_INTERVAL);
+    return () => clearInterval(interval);
+  }, [isReady, gameState]);
+
+  // Remove expired power-ups and update active power-ups
+  useEffect(() => {
+    if (gameState !== "playing") return;
+    const cleanup = setInterval(() => {
+      const now = Date.now();
+      
+      // Clean up collected power-ups
+      setPowerUps((prev) => prev.filter((p) => {
+        if (p.isCollected) return now - p.collectedTime < 1000;
+        return now - p.spawnTime < 15000; // 15 second lifetime
+      }));
+
+      // Clean up expired active power-ups
+      setActivePowerUps((prev) => prev.filter((p) => now - p.startTime < p.duration));
+    }, 100);
+    return () => clearInterval(cleanup);
+
   // Remove expired/hit targets & track misses
   useEffect(() => {
     if (gameState !== "playing") return;
