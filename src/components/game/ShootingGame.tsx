@@ -61,6 +61,8 @@ const SPAWN_INTERVAL_BASE = 1500;
 const HIT_RADIUS = 0.07;
 const MAX_MISSES = 5;
 const HIGH_SCORE_KEY = "hand-shooter-high-score";
+const POWER_UP_SPAWN_INTERVAL = 8000; // 8 seconds
+const POWER_UP_COLLECTION_RADIUS = 0.08;
 
 function getHighScore(): number {
   try {
