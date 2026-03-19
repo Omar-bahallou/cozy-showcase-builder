@@ -296,20 +296,32 @@ export default function ShootingGame() {
 
       // Check for target hits
       setTargets((prev) => {
-        let hit = false;
+        let hitTarget: GameTarget | null = null;
         const updated = prev.map((target) => {
           if (target.isHit) return target;
+          if (hitTarget) return target; // Only hit one target per shot
           const dx = target.x - pos.x;
           const dy = target.y - pos.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < HIT_RADIUS + target.size / 1500) {
-            hit = true;
-            return { ...target, isHit: true, hitTime: Date.now() };
+            const newHp = target.hp - 1;
+            if (newHp <= 0) {
+              hitTarget = { ...target, isHit: true, hitTime: Date.now(), hp: 0 };
+              return hitTarget;
+            } else {
+              // Boss took damage but not dead yet - give partial points
+              const config = TARGET_TYPES[target.type];
+              const hasMultiplier = activePowerUps.some(p => p.type === "multiplier" && Date.now() - p.startTime < p.duration);
+              const partialPts = Math.round((config.points / target.maxHp) * (hasMultiplier ? 2 : 1) * speedMultiplier);
+              setScore((s) => s + partialPts);
+              playHit(target.type);
+              return { ...target, hp: newHp };
+            }
           }
           return target;
         });
-        if (hit) {
-          const hitTarget = updated.find((t) => t.isHit && t.hitTime === Date.now());
+        if (hitTarget) {
+          const ht = hitTarget as GameTarget;
           const hitType = hitTarget?.type || "normal";
           const basePts = hitTarget ? TARGET_TYPES[hitType].points : 10;
           
