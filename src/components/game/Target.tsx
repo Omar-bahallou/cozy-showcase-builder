@@ -9,7 +9,9 @@ interface TargetProps {
   lifetime: number;
   targetType: TargetType;
   points: number;
-  colorVar: string; // e.g. "--game-target"
+  colorVar: string;
+  hp?: number;
+  maxHp?: number;
 }
 
 const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar }: TargetProps) => {
