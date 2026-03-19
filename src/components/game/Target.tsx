@@ -14,7 +14,7 @@ interface TargetProps {
   maxHp?: number;
 }
 
-const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar }: TargetProps) => {
+const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar, hp = 1, maxHp = 1 }: TargetProps) => {
   const [particles, setParticles] = useState<Array<{ angle: number; dist: number; size: number }>>([]);
 
   useEffect(() => {
