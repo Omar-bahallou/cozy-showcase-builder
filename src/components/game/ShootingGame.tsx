@@ -68,7 +68,6 @@ const POWER_UP_SPAWN_INTERVAL = 8000;
 const POWER_UP_COLLECTION_RADIUS = 0.08;
 const BOSS_SPAWN_INTERVAL = 25000; // Every 25 seconds
 const BOSS_HP = 5;
-const POWER_UP_COLLECTION_RADIUS = 0.08;
 
 function getHighScore(): number {
   try {
