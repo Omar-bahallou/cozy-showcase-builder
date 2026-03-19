@@ -43,6 +43,8 @@
     --game-heavy-glow: 30 95% 60%;
     --game-bonus: 280 80% 65%;
     --game-bonus-glow: 280 85% 75%;
+    --game-boss: 45 100% 50%;
+    --game-boss-glow: 45 100% 65%;
 
     --sidebar-background: 0 0% 5%;
     --sidebar-foreground: 0 0% 95%;

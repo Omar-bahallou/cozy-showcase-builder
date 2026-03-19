@@ -9,7 +9,7 @@ import GameUI from "./GameUI";
 import StartScreen from "./StartScreen";
 import GameOverScreen from "./GameOverScreen";
 
-export type TargetType = "normal" | "fast" | "heavy" | "bonus" | "decoy";
+export type TargetType = "normal" | "fast" | "heavy" | "bonus" | "decoy" | "boss";
 
 export interface TargetTypeConfig {
   sizeRange: [number, number];
@@ -25,6 +25,7 @@ export const TARGET_TYPES: Record<TargetType, TargetTypeConfig> = {
   heavy:  { sizeRange: [85, 110], lifetime: 4500, points: 5, color: "--game-heavy", label: "+5" },
   bonus:  { sizeRange: [40, 55], lifetime: 1200, points: 50, color: "--game-bonus", label: "+50" },
   decoy:  { sizeRange: [60, 75], lifetime: 3500, points: -20, color: "--destructive", label: "-20" },
+  boss:   { sizeRange: [130, 160], lifetime: 10000, points: 100, color: "--game-boss", label: "+100" },
 };
 
 interface GameTarget {
@@ -36,6 +37,8 @@ interface GameTarget {
   isHit: boolean;
   hitTime: number;
   spawnTime: number;
+  hp: number;
+  maxHp: number;
 }
 
 interface GamePowerUp {
@@ -61,8 +64,10 @@ const SPAWN_INTERVAL_BASE = 1500;
 const HIT_RADIUS = 0.07;
 const MAX_MISSES = 5;
 const HIGH_SCORE_KEY = "hand-shooter-high-score";
-const POWER_UP_SPAWN_INTERVAL = 8000; // 8 seconds
+const POWER_UP_SPAWN_INTERVAL = 8000;
 const POWER_UP_COLLECTION_RADIUS = 0.08;
+const BOSS_SPAWN_INTERVAL = 25000; // Every 25 seconds
+const BOSS_HP = 5;
 
 function getHighScore(): number {
   try {
@@ -157,11 +162,37 @@ export default function ShootingGame() {
         isHit: false,
         hitTime: 0,
         spawnTime: Date.now(),
+        hp: 1,
+        maxHp: 1,
       };
       setTargets((prev) => [...prev, newTarget]);
     }, SPAWN_INTERVAL_BASE / effectiveSpeedMultiplier);
     return () => clearInterval(interval);
   }, [isReady, speedMultiplier, gameState, activePowerUps]);
+
+  // Spawn boss targets
+  useEffect(() => {
+    if (!isReady || gameState !== "playing") return;
+    const interval = setInterval(() => {
+      const margin = 0.15;
+      const config = TARGET_TYPES["boss"];
+      const size = config.sizeRange[0] + Math.random() * (config.sizeRange[1] - config.sizeRange[0]);
+      const newTarget: GameTarget = {
+        id: targetIdRef.current++,
+        x: margin + Math.random() * (1 - 2 * margin),
+        y: margin + Math.random() * (1 - 2 * margin),
+        size,
+        type: "boss",
+        isHit: false,
+        hitTime: 0,
+        spawnTime: Date.now(),
+        hp: BOSS_HP,
+        maxHp: BOSS_HP,
+      };
+      setTargets((prev) => [...prev, newTarget]);
+    }, BOSS_SPAWN_INTERVAL);
+    return () => clearInterval(interval);
+  }, [isReady, gameState]);
 
   // Spawn power-ups
   useEffect(() => {
@@ -265,39 +296,50 @@ export default function ShootingGame() {
 
       // Check for target hits
       setTargets((prev) => {
-        let hit = false;
+        let hitTarget: GameTarget | null = null;
         const updated = prev.map((target) => {
           if (target.isHit) return target;
+          if (hitTarget) return target; // Only hit one target per shot
           const dx = target.x - pos.x;
           const dy = target.y - pos.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist < HIT_RADIUS + target.size / 1500) {
-            hit = true;
-            return { ...target, isHit: true, hitTime: Date.now() };
+            const newHp = target.hp - 1;
+            if (newHp <= 0) {
+              hitTarget = { ...target, isHit: true, hitTime: Date.now(), hp: 0 };
+              return hitTarget;
+            } else {
+              // Boss took damage but not dead yet - give partial points
+              const config = TARGET_TYPES[target.type];
+              const hasMultiplier = activePowerUps.some(p => p.type === "multiplier" && Date.now() - p.startTime < p.duration);
+              const partialPts = Math.round((config.points / target.maxHp) * (hasMultiplier ? 2 : 1) * speedMultiplier);
+              setScore((s) => s + partialPts);
+              playHit(target.type);
+              return { ...target, hp: newHp };
+            }
           }
           return target;
         });
-        if (hit) {
-          const hitTarget = updated.find((t) => t.isHit && t.hitTime === Date.now());
-          const hitType = hitTarget?.type || "normal";
-          const basePts = hitTarget ? TARGET_TYPES[hitType].points : 10;
+        if (hitTarget) {
+          const ht = hitTarget as GameTarget;
+          const hitType = ht.type;
+          const basePts = TARGET_TYPES[hitType].points;
+          // For boss kills, award remaining points (partial already given)
+          const bossRemainingPts = ht.type === "boss" ? Math.round(basePts - basePts / ht.maxHp * (ht.maxHp - 1)) : basePts;
           
           // Apply multiplier power-up
           const hasMultiplier = activePowerUps.some(p => p.type === "multiplier" && Date.now() - p.startTime < p.duration);
-          const pts = hasMultiplier ? basePts * 2 : basePts;
+          const effectivePts = hasMultiplier ? bossRemainingPts * 2 : bossRemainingPts;
           
           playHit(hitType);
           if (hitType === "decoy") {
-            // Decoy penalty: reset combo, reduce speed, subtract points
-            // Shield protects from decoy penalty
             const hasShield = activePowerUps.some(p => p.type === "shield" && Date.now() - p.startTime < p.duration);
             if (!hasShield) {
               setCombo(0);
               setSpeedMultiplier(1.0);
-              setScore((s) => Math.max(0, s + basePts)); // basePts is negative for decoy
-              setMisses((m) => m + 1); // Count as a miss
+              setScore((s) => Math.max(0, s + basePts));
+              setMisses((m) => m + 1);
             } else {
-              // Shield absorbs the decoy hit, still give positive points
               setScore((s) => s + Math.abs(basePts));
             }
           } else {
@@ -306,8 +348,8 @@ export default function ShootingGame() {
               if (newCombo >= 3 && newCombo % 3 === 0) playCombo(newCombo);
               return newCombo;
             });
-            setScore((s) => s + Math.round(pts * speedMultiplier));
-            setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
+            setScore((s) => s + Math.round(effectivePts * speedMultiplier));
+            setSpeedMultiplier((s) => Math.min(s + (hitType === "boss" ? 0.3 : 0.1), 5.0));
           }
         }
         return updated;
@@ -362,6 +404,8 @@ export default function ShootingGame() {
                 targetType={target.type}
                 points={config.points}
                 colorVar={config.color}
+                hp={target.hp}
+                maxHp={target.maxHp}
               />
             );
           })}

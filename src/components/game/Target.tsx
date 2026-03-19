@@ -9,10 +9,12 @@ interface TargetProps {
   lifetime: number;
   targetType: TargetType;
   points: number;
-  colorVar: string; // e.g. "--game-target"
+  colorVar: string;
+  hp?: number;
+  maxHp?: number;
 }
 
-const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar }: TargetProps) => {
+const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar, hp = 1, maxHp = 1 }: TargetProps) => {
   const [particles, setParticles] = useState<Array<{ angle: number; dist: number; size: number }>>([]);
 
   useEffect(() => {
@@ -30,10 +32,10 @@ const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar
   const colorAlpha = (a: number) => `hsl(var(${colorVar}) / ${a})`;
   const urgency = lifetime < 0.3 ? "animate-pulse" : "";
 
-  // Type-specific decorations
   const isBonus = targetType === "bonus";
   const isFast = targetType === "fast";
   const isDecoy = targetType === "decoy";
+  const isBoss = targetType === "boss";
 
   return (
     <div
@@ -83,13 +85,25 @@ const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar
         </div>
       ) : (
         <div className={`relative ${urgency}`} style={{ width: size, height: size }}>
+          {/* Boss: extra outer glow ring */}
+          {isBoss && (
+            <div
+              className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full animate-pulse"
+              style={{
+                width: size + 24,
+                height: size + 24,
+                border: `2px solid ${colorAlpha(0.4)}`,
+                boxShadow: `0 0 30px ${colorAlpha(0.3)}, 0 0 60px ${colorAlpha(0.15)}`,
+              }}
+            />
+          )}
           {/* Rotating outer dashed ring */}
           <div
-            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${isFast ? "animate-spin" : "animate-spin-slow"}`}
+            className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full ${isBoss || isFast ? "animate-spin" : "animate-spin-slow"}`}
             style={{
               width: size + 10,
               height: size + 10,
-              border: `1px dashed ${colorAlpha(0.3)}`,
+              border: `${isBoss ? 2 : 1}px dashed ${colorAlpha(isBoss ? 0.5 : 0.3)}`,
             }}
           />
           {/* Outer ring */}
@@ -98,8 +112,10 @@ const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar
             style={{
               width: size,
               height: size,
-              border: `3px solid ${color}`,
-              boxShadow: `0 0 20px ${colorAlpha(0.5)}, 0 0 40px ${colorAlpha(0.2)}`,
+              border: `${isBoss ? 4 : 3}px solid ${color}`,
+              boxShadow: isBoss
+                ? `0 0 25px ${colorAlpha(0.6)}, 0 0 50px ${colorAlpha(0.3)}, inset 0 0 20px ${colorAlpha(0.15)}`
+                : `0 0 20px ${colorAlpha(0.5)}, 0 0 40px ${colorAlpha(0.2)}`,
               background: colorAlpha(0.15),
               position: "relative",
             }}
@@ -123,7 +139,6 @@ const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar
                 boxShadow: `0 0 15px ${colorAlpha(0.5)}`,
               }}
             />
-            {/* Bonus star icon */}
             {isBonus && (
               <div
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-black animate-pulse select-none"
@@ -132,7 +147,14 @@ const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar
                 ★
               </div>
             )}
-            {/* Decoy skull icon */}
+            {isBoss && (
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-black animate-pulse select-none"
+                style={{ color, fontSize: size * 0.22 }}
+              >
+                👑
+              </div>
+            )}
             {isDecoy && (
               <div
                 className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-xs font-black animate-pulse select-none"
@@ -149,9 +171,25 @@ const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar
           >
             {targetType === "normal" ? "" : targetType}
           </div>
+          {/* Boss HP bar */}
+          {isBoss && maxHp > 1 && (
+            <div
+              className="absolute -bottom-5 left-1/2 -translate-x-1/2 h-2 rounded-full overflow-hidden"
+              style={{ width: size * 0.9, background: "hsl(var(--muted) / 0.4)" }}
+            >
+              <div
+                className="h-full rounded-full transition-all duration-200"
+                style={{
+                  width: `${(hp / maxHp) * 100}%`,
+                  background: `linear-gradient(90deg, hsl(var(--destructive)), ${color})`,
+                  boxShadow: `0 0 6px ${colorAlpha(0.5)}`,
+                }}
+              />
+            </div>
+          )}
           {/* Lifetime bar */}
           <div
-            className="absolute -bottom-2 left-1/2 -translate-x-1/2 h-1 rounded-full overflow-hidden"
+            className={`absolute left-1/2 -translate-x-1/2 h-1 rounded-full overflow-hidden ${isBoss ? "-bottom-8" : "-bottom-2"}`}
             style={{ width: size * 0.8, background: "hsl(var(--muted) / 0.3)" }}
           >
             <div
