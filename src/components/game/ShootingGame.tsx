@@ -404,6 +404,8 @@ export default function ShootingGame() {
                 targetType={target.type}
                 points={config.points}
                 colorVar={config.color}
+                hp={target.hp}
+                maxHp={target.maxHp}
               />
             );
           })}
