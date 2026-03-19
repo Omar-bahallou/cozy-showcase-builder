@@ -163,6 +163,8 @@ export default function ShootingGame() {
         isHit: false,
         hitTime: 0,
         spawnTime: Date.now(),
+        hp: 1,
+        maxHp: 1,
       };
       setTargets((prev) => [...prev, newTarget]);
     }, SPAWN_INTERVAL_BASE / effectiveSpeedMultiplier);
