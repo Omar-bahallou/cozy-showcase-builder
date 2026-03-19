@@ -322,8 +322,10 @@ export default function ShootingGame() {
         });
         if (hitTarget) {
           const ht = hitTarget as GameTarget;
-          const hitType = hitTarget?.type || "normal";
-          const basePts = hitTarget ? TARGET_TYPES[hitType].points : 10;
+          const hitType = ht.type;
+          const basePts = TARGET_TYPES[hitType].points;
+          // For boss kills, award remaining points (partial already given)
+          const bossRemainingPts = ht.type === "boss" ? Math.round(basePts - basePts / ht.maxHp * (ht.maxHp - 1)) : basePts;
           
           // Apply multiplier power-up
           const hasMultiplier = activePowerUps.some(p => p.type === "multiplier" && Date.now() - p.startTime < p.duration);
