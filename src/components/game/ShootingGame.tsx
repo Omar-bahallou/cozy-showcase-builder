@@ -170,6 +170,30 @@ export default function ShootingGame() {
     return () => clearInterval(interval);
   }, [isReady, speedMultiplier, gameState, activePowerUps]);
 
+  // Spawn boss targets
+  useEffect(() => {
+    if (!isReady || gameState !== "playing") return;
+    const interval = setInterval(() => {
+      const margin = 0.15;
+      const config = TARGET_TYPES["boss"];
+      const size = config.sizeRange[0] + Math.random() * (config.sizeRange[1] - config.sizeRange[0]);
+      const newTarget: GameTarget = {
+        id: targetIdRef.current++,
+        x: margin + Math.random() * (1 - 2 * margin),
+        y: margin + Math.random() * (1 - 2 * margin),
+        size,
+        type: "boss",
+        isHit: false,
+        hitTime: 0,
+        spawnTime: Date.now(),
+        hp: BOSS_HP,
+        maxHp: BOSS_HP,
+      };
+      setTargets((prev) => [...prev, newTarget]);
+    }, BOSS_SPAWN_INTERVAL);
+    return () => clearInterval(interval);
+  }, [isReady, gameState]);
+
   // Spawn power-ups
   useEffect(() => {
     if (!isReady || gameState !== "playing") return;
