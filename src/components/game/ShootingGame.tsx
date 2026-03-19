@@ -329,20 +329,17 @@ export default function ShootingGame() {
           
           // Apply multiplier power-up
           const hasMultiplier = activePowerUps.some(p => p.type === "multiplier" && Date.now() - p.startTime < p.duration);
-          const pts = hasMultiplier ? basePts * 2 : basePts;
+          const effectivePts = hasMultiplier ? bossRemainingPts * 2 : bossRemainingPts;
           
           playHit(hitType);
           if (hitType === "decoy") {
-            // Decoy penalty: reset combo, reduce speed, subtract points
-            // Shield protects from decoy penalty
             const hasShield = activePowerUps.some(p => p.type === "shield" && Date.now() - p.startTime < p.duration);
             if (!hasShield) {
               setCombo(0);
               setSpeedMultiplier(1.0);
-              setScore((s) => Math.max(0, s + basePts)); // basePts is negative for decoy
-              setMisses((m) => m + 1); // Count as a miss
+              setScore((s) => Math.max(0, s + basePts));
+              setMisses((m) => m + 1);
             } else {
-              // Shield absorbs the decoy hit, still give positive points
               setScore((s) => s + Math.abs(basePts));
             }
           } else {
@@ -351,8 +348,8 @@ export default function ShootingGame() {
               if (newCombo >= 3 && newCombo % 3 === 0) playCombo(newCombo);
               return newCombo;
             });
-            setScore((s) => s + Math.round(pts * speedMultiplier));
-            setSpeedMultiplier((s) => Math.min(s + 0.1, 5.0));
+            setScore((s) => s + Math.round(effectivePts * speedMultiplier));
+            setSpeedMultiplier((s) => Math.min(s + (hitType === "boss" ? 0.3 : 0.1), 5.0));
           }
         }
         return updated;
