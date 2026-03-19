@@ -9,7 +9,7 @@ import GameUI from "./GameUI";
 import StartScreen from "./StartScreen";
 import GameOverScreen from "./GameOverScreen";
 
-export type TargetType = "normal" | "fast" | "heavy" | "bonus" | "decoy";
+export type TargetType = "normal" | "fast" | "heavy" | "bonus" | "decoy" | "boss";
 
 export interface TargetTypeConfig {
   sizeRange: [number, number];
