@@ -37,6 +37,8 @@ interface GameTarget {
   isHit: boolean;
   hitTime: number;
   spawnTime: number;
+  hp: number;
+  maxHp: number;
 }
 
 interface GamePowerUp {
