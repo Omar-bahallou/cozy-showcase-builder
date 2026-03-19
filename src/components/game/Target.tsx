@@ -36,6 +36,7 @@ const Target = memo(({ x, y, size, isHit, lifetime, targetType, points, colorVar
   const isBonus = targetType === "bonus";
   const isFast = targetType === "fast";
   const isDecoy = targetType === "decoy";
+  const isBoss = targetType === "boss";
 
   return (
     <div
